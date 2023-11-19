@@ -1,0 +1,63 @@
+# host all means all inventory in config file and inventory file or in simple all ip of host
+- hosts: all
+  
+  #simple way to add random val 6 dig num int , it is var 
+  vars:
+    vol1: "{{ lookup('password', '/dev/null chars=digits length=6') }}"
+
+  # task here is some task like running docker or like that   
+  tasks:
+    #first time - name means name of task 
+    - name: Launch code-server container
+    # this line means uses extention call docker docker_contianer 
+      community.docker.docker_container:
+      # this time name with - is name of contianer 
+        name: "code-server-{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=8') }}"
+      # docker image or which img to use here it is coder-server by lscr.io
+        image: lscr.io/linuxserver/code-server:latest
+      #  ports is which port to expose and we are using passwd function to get random external port 
+        ports:
+          - "{{ lookup('password', '/dev/null chars=digits length=4') }}:8443"
+      # env means eviornment like we pass -e in docker     
+        env:
+          PASSWORD: "password"
+          SUDO_PASSWORD: "password"
+          PUID: "1000"
+          PGID: "1000"
+          TZ: "Etc/UTC"
+      # Volumes means which storage area to use we use random var/fun here  
+        volumes:
+          - "volume-{{ vol1 }}:/config"
+        restart_policy: unless-stopped
+  # one more task basically copy files for user to hosts and it is in array to be user for more files too 
+    - name: Copy ports main py to the remote host
+      copy:
+        src: "{{ item.src }}" #sorce 
+        dest: "{{ item.dest }}" #destination
+        remote_src: no # if true then file will copy from remote lo and past to remove location only used for passing deb or package 
+      with_items:
+        - { src: 'main.py', dest: '~/' }
+        - { src: 'ports.txt', dest: '~/' }
+# it is simple command which runs a py script and find port of conatiner as we used random 
+    - name: Run Python port finder
+      shell: python3 main.py  #script name and command 
+      register: python_output
+      changed_when: false  # Marking as unchanged to avoid displaying always-changed status
+# display the out put of py script 
+    - name: Display Port of container
+      debug:
+        var: python_output.stdout_lines
+# copy file from remote host to local 
+    - name: Fetch a file from the remote host to local
+      fetch:
+        src: ports.txt
+        dest: recived
+#it is for deleting the file remains which is optional 
+#in arrary same as copy one 
+    - name: Delete files on host
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - main.py
+        - ports.txt
