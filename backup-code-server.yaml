@@ -1,0 +1,19 @@
+- hosts: all
+  vars:
+    vol1: "{{ lookup('password', '/dev/null chars=digits length=6') }}"
+  tasks:
+    - name: Launch code-server container
+      community.docker.docker_container:
+        name: "code-server-{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=8') }}"
+        image: lscr.io/linuxserver/code-server:latest
+        ports:
+          - "{{ lookup('password', '/dev/null chars=digits length=4') }}:8443"
+        env:
+          PASSWORD: "password"
+          SUDO_PASSWORD: "password"
+          PUID: "1000"
+          PGID: "1000"
+          TZ: "Etc/UTC"
+        volumes:
+          - "volume-{{ vol1 }}:/config"
+        restart_policy: unless-stopped
